@@ -1,0 +1,20 @@
+{
+  "name": "gerador-relatorio-web",
+  "version": "1.0.0",
+  "description": "Painel web + API para registrar dados, gerar gráficos e exportar relatórios em PDF",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["dashboard", "relatorio", "pdf", "api", "graficos"],
+  "author": "Pietro",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "chartjs-node-canvas": "^5.0.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "pdfkit": "^0.18.0"
+  }
+}

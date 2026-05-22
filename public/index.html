@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Relatórios</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 30px; font-size: 1.8rem; color: #38bdf8; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 30px; }
+    .card { background: #1e293b; border-radius: 12px; padding: 20px; text-align: center; }
+    .card .number { font-size: 2rem; font-weight: bold; color: #38bdf8; }
+    .card .label { font-size: 0.85rem; color: #94a3b8; margin-top: 4px; }
+
+    .section { background: #1e293b; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .section h2 { font-size: 1.1rem; margin-bottom: 16px; color: #38bdf8; }
+
+    .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .form-row input { flex: 1; min-width: 120px; padding: 10px 14px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 0.95rem; }
+    .form-row input:focus { outline: none; border-color: #38bdf8; }
+    .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.95rem; font-weight: 600; }
+    .btn-primary { background: #38bdf8; color: #0f172a; }
+    .btn-primary:hover { background: #7dd3fc; }
+    .btn-danger { background: #ef4444; color: white; font-size: 0.8rem; padding: 6px 12px; }
+    .btn-secondary { background: #334155; color: #e2e8f0; }
+    .btn-secondary:hover { background: #475569; }
+
+    .actions { display: flex; gap: 10px; margin-bottom: 20px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #334155; }
+    th { color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; }
+    td { font-size: 0.9rem; }
+
+    .chart-container { text-align: center; }
+    .chart-container img { max-width: 100%; border-radius: 8px; }
+
+    .empty { text-align: center; color: #64748b; padding: 40px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📊 Painel de Relatórios</h1>
+
+    <div class="cards" id="cards"></div>
+
+    <div class="section">
+      <h2>Adicionar registro</h2>
+      <div class="form-row">
+        <input type="text" id="label" placeholder="Label (ex: Venda loja)" />
+        <input type="number" id="valor" placeholder="Valor (R$)" step="0.01" />
+        <input type="text" id="categoria" placeholder="Categoria (ex: vendas)" />
+        <button class="btn btn-primary" onclick="adicionar()">Adicionar</button>
+      </div>
+    </div>
+
+    <div class="actions">
+      <a href="/api/relatorio/pdf" class="btn btn-secondary" target="_blank">📄 Baixar PDF</a>
+      <button class="btn btn-secondary" onclick="loadChart()">📊 Ver gráfico</button>
+    </div>
+
+    <div class="section chart-container" id="chart-section" style="display:none">
+      <h2>Gráfico por categoria</h2>
+      <img id="chart-img" />
+    </div>
+
+    <div class="section">
+      <h2>Registros</h2>
+      <div id="tabela"></div>
+    </div>
+  </div>
+
+  <script>
+    const API = "";
+
+    async function load() {
+      const [dados, resumo] = await Promise.all([
+        fetch(`${API}/api/dados`).then(r => r.json()),
+        fetch(`${API}/api/resumo`).then(r => r.json()),
+      ]);
+
+      document.getElementById("cards").innerHTML = `
+        <div class="card"><div class="number">${resumo.total_registros}</div><div class="label">Registros</div></div>
+        <div class="card"><div class="number">R$ ${resumo.soma_total.toFixed(2)}</div><div class="label">Total</div></div>
+        <div class="card"><div class="number">R$ ${resumo.media.toFixed(2)}</div><div class="label">Média</div></div>
+        <div class="card"><div class="number">${Object.keys(resumo.por_categoria).length}</div><div class="label">Categorias</div></div>
+      `;
+
+      if (!dados.length) {
+        document.getElementById("tabela").innerHTML = '<div class="empty">Nenhum registro ainda. Adicione acima!</div>';
+        return;
+      }
+
+      let html = `<table><thead><tr><th>Label</th><th>Categoria</th><th>Valor</th><th>Data</th><th></th></tr></thead><tbody>`;
+      for (const d of dados.reverse()) {
+        html += `<tr>
+          <td>${d.label}</td>
+          <td>${d.categoria}</td>
+          <td>R$ ${d.valor.toFixed(2)}</td>
+          <td>${new Date(d.data).toLocaleDateString("pt-BR")}</td>
+          <td><button class="btn btn-danger" onclick="remover(${d.id})">✕</button></td>
+        </tr>`;
+      }
+      html += `</tbody></table>`;
+      document.getElementById("tabela").innerHTML = html;
+    }
+
+    async function adicionar() {
+      const label = document.getElementById("label").value.trim();
+      const valor = document.getElementById("valor").value;
+      const categoria = document.getElementById("categoria").value.trim();
+      if (!label || !valor) return alert("Preencha label e valor!");
+      await fetch(`${API}/api/dados`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label, valor, categoria }),
+      });
+      document.getElementById("label").value = "";
+      document.getElementById("valor").value = "";
+      document.getElementById("categoria").value = "";
+      load();
+    }
+
+    async function remover(id) {
+      await fetch(`${API}/api/dados/${id}`, { method: "DELETE" });
+      load();
+    }
+
+    function loadChart() {
+      const section = document.getElementById("chart-section");
+      section.style.display = "block";
+      document.getElementById("chart-img").src = `/api/grafico?t=${Date.now()}`;
+    }
+
+    load();
+  </script>
+</body>
+</html>
